@@ -82,15 +82,10 @@ npm run generate:all
 
 # Watch mode:
 
-All
 ```bash
 npm run generate:watch:ts
 ```
 
-Single file:
-```bash
-npm run generate:watch:ts -- file --watch
-```
 
 ## Programmatic API
 
