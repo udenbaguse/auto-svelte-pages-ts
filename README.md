@@ -53,8 +53,8 @@ The CLI replaces only the content between those markers.
 {
   "scripts": {
     "generate:all": "auto-svelte-pages-ts",
-    "generate:": "auto-svelte-pages-ts"
-   
+    "generate:": "auto-svelte-pages-ts",
+    "generate:watch:ts": "auto-svelte-pages-ts --watch"  
   }
 }
 ```

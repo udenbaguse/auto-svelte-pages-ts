@@ -2,7 +2,13 @@
 
 All notable changes to `auto-svelte-pages-ts` will be documented in this file.
 
-## [1.1.0] - 2026-04-10
+## [1.2.1] - 2026-04-10
+
+### Added
+- `--watch` mode to monitor root HTML files and regenerate automatically on changes.
+- `--watch` supports targeted mode as well (for example: `auto-svelte-pages-ts naruto --watch`).
+
+## [1.2.0] - 2026-04-10
 
 ### Added
 - `--watch` mode to monitor root HTML files and regenerate automatically on changes.
