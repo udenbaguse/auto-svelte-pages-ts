@@ -1,0 +1,28 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Wajib untuk Trusted Publisher/OIDC
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm install
+      
+      # Ini penting jika project kamu perlu diconvert dari TS/Svelte ke JS biasa
+      - run: npm run build --if-present
+
+      - name: Publish to npm
+        # --provenance menghubungkan paket npm kamu ke source code GitHub secara transparan
+        run: npm publish --provenance --access public
