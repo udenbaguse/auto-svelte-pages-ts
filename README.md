@@ -82,7 +82,7 @@ npm run generate:all
 ## Programmatic API
 
 ```js
-import { generatePages } from "auto-svelte-pages";
+import { generatePages } from "auto-svelte-pages-ts";
 
 await generatePages({
   force: false,
