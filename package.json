@@ -1,0 +1,32 @@
+{
+  "name": "auto-svelte-pages-ts",
+  "version": "1.0.0",
+  "description": "Generate Svelte TypeScript entry/component files from HTML pages and sync Vite multi-page inputs.",
+  "type": "module",
+  "files": [
+    "bin",
+    "src",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "auto-svelte-pages-ts": "./bin/auto-svelte-pages-ts.js"
+  },
+  "main": "./src/generator.js",
+  "exports": {
+    ".": "./src/generator.js"
+  },
+  "keywords": [
+    "svelte",
+    "vite",
+    "multipage",
+    "generator",
+    "cli"
+  ],
+  "author": "Muhamad Syamsudin A.K.A @udenbaguse",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
