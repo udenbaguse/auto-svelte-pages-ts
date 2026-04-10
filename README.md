@@ -15,7 +15,7 @@ Generate Svelte TypeScript `entry` + `component` files from root HTML pages and 
 ## Install
 
 ```bash
-npm i -D github:udenbaguse/auto-svelte-pages-ts
+npm i -D auto-svelte-pages-ts
 ```
 
 
