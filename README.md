@@ -54,6 +54,7 @@ The CLI replaces only the content between those markers.
   "scripts": {
     "generate:all": "auto-svelte-pages-ts",
     "generate:": "auto-svelte-pages-ts"
+   
   }
 }
 ```
@@ -77,6 +78,18 @@ All files:
 
 ```bash
 npm run generate:all
+```
+
+# Watch mode:
+
+All
+```bash
+npm run generate:watch:ts
+```
+
+Single file:
+```bash
+npm run generate:watch:ts -- file --watch
 ```
 
 ## Programmatic API
