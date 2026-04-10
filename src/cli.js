@@ -1,4 +1,4 @@
-import { generatePages } from './generator.js';
+import { generatePages } from "./generator.js";
 
 function parseArgs(argv) {
   const options = {
@@ -10,58 +10,58 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
 
-    if (arg === '--no-vite') {
+    if (arg === "--no-vite") {
       options.updateVite = false;
       continue;
     }
 
-    if (arg === '--root-only') {
+    if (arg === "--root-only") {
       options.includeNestedHtml = false;
       continue;
     }
 
-    if (arg === '--root') {
+    if (arg === "--root") {
       options.rootDir = argv[i + 1];
       i += 1;
       continue;
     }
 
-    if (arg === '--src-dir') {
+    if (arg === "--src-dir") {
       options.srcDir = argv[i + 1];
       i += 1;
       continue;
     }
 
-    if (arg === '--entry-dir') {
+    if (arg === "--entry-dir") {
       options.entryDir = argv[i + 1];
       i += 1;
       continue;
     }
 
-    if (arg === '--component-dir') {
+    if (arg === "--component-dir") {
       options.componentDir = argv[i + 1];
       i += 1;
       continue;
     }
 
-    if (arg === '--vite-config') {
+    if (arg === "--vite-config") {
       options.viteConfig = argv[i + 1];
       i += 1;
       continue;
     }
 
-    if (arg === '--css-import') {
+    if (arg === "--css-import") {
       options.appCssImportPath = argv[i + 1];
       i += 1;
       continue;
     }
 
-    if (arg === '--help' || arg === '-h') {
+    if (arg === "--help" || arg === "-h") {
       options.help = true;
       continue;
     }
 
-    if (arg.startsWith('--')) {
+    if (arg.startsWith("--")) {
       throw new Error(`Unknown argument: ${arg}`);
     }
 
@@ -84,7 +84,7 @@ Options:
   --src-dir <dir>      Source dir under root (default: src)
   --entry-dir <dir>    Entry dir under src (default: entry)
   --component-dir <dir>Component dir under src (default: component)
-  --vite-config <file> Vite config path from root (default: vite.config.js)
+  --vite-config <file> Vite config path from root (default: vite.config.ts, fallback vite.config.js)
   --css-import <path>  CSS import path used in generated entry file (default: ../app.css)
   --help, -h           Show help
 

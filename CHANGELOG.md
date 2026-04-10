@@ -2,6 +2,13 @@
 
 All notable changes to `auto-svelte-pages-ts` will be documented in this file.
 
+## [1.0.1] - 2026-04-10
+
+### Fixed
+- Default Vite config resolution now prioritizes `vite.config.ts`.
+- Added automatic fallback to `vite.config.js` when `vite.config.ts` does not exist.
+- Updated CLI/help and documentation to reflect the TypeScript-first config behavior.
+
 ## [1.0.0] - 2026-04-10
 
 ### Added
@@ -15,5 +22,5 @@ All notable changes to `auto-svelte-pages-ts` will be documented in this file.
   - `// AUTO-GENERATED VITE INPUT START`
   - `// AUTO-GENERATED VITE INPUT END`
 - Targeted generation for one or many files without full scan:
-  - `auto-svelte-pages-ts file`
-  - `auto-svelte-pages-ts file1 file2.html`
+  - `auto-svelte-pages-ts naruto`
+  - `auto-svelte-pages-ts naruto sasuke.html`

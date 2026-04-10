@@ -1,25 +1,25 @@
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
-const INPUT_START_MARKER = '// AUTO-GENERATED VITE INPUT START';
-const INPUT_END_MARKER = '// AUTO-GENERATED VITE INPUT END';
+const INPUT_START_MARKER = "// AUTO-GENERATED VITE INPUT START";
+const INPUT_END_MARKER = "// AUTO-GENERATED VITE INPUT END";
 
 function toPascalCase(value) {
   return value
     .split(/[^a-zA-Z0-9]+/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join('');
+    .join("");
 }
 
 function normalizePath(filePath) {
-  return filePath.split(path.sep).join('/');
+  return filePath.split(path.sep).join("/");
 }
 
 function toViteInputKey(relativeHtmlPath) {
-  const withoutExt = relativeHtmlPath.replace(/\.html$/i, '');
+  const withoutExt = relativeHtmlPath.replace(/\.html$/i, "");
   const segments = withoutExt.split(/[\\/]+/).filter(Boolean);
-  return segments.join('_').toLowerCase();
+  return segments.join("_").toLowerCase();
 }
 
 function entryTemplate(componentName, appCssImportPath) {
@@ -82,7 +82,7 @@ async function listHtmlFilesRecursively(rootDir, dir, ignoreDirs) {
       continue;
     }
 
-    if (entry.isFile() && entry.name.endsWith('.html')) {
+    if (entry.isFile() && entry.name.endsWith(".html")) {
       htmlFiles.push(relativePath);
     }
   }
@@ -104,7 +104,7 @@ function createInputBlock(relativeHtmlPaths) {
     `        ${INPUT_START_MARKER}`,
     ...lines,
     `        ${INPUT_END_MARKER}`,
-  ].join('\n');
+  ].join("\n");
 }
 
 function parseExistingInputEntries(blockContent) {
@@ -123,12 +123,22 @@ function parseExistingInputEntries(blockContent) {
 function getMarkerPattern(escapedStart, escapedEnd) {
   return new RegExp(
     `^[ \\t]*${escapedStart}[\\s\\S]*?^[ \\t]*${escapedEnd}`,
-    'm',
+    "m",
   );
 }
 
 function normalizeTargetFile(target) {
-  return target.endsWith('.html') ? target : `${target}.html`;
+  return target.endsWith(".html") ? target : `${target}.html`;
+}
+
+async function resolveDefaultViteConfigPath(rootDir) {
+  const tsPath = path.join(rootDir, "vite.config.ts");
+  try {
+    await fs.access(tsPath);
+    return tsPath;
+  } catch {
+    return path.join(rootDir, "vite.config.js");
+  }
 }
 
 async function resolveRootTargetHtmlFiles(rootDir, targets) {
@@ -172,27 +182,30 @@ async function writeIfNeeded(filePath, content) {
   }
 
   if (!exists) {
-    await fs.writeFile(filePath, content, 'utf8');
-    return 'created';
+    await fs.writeFile(filePath, content, "utf8");
+    return "created";
   }
 
-  return 'skipped';
+  return "skipped";
 }
 
 async function writeHtmlBoilerplateIfNeeded(htmlPath, pageName) {
-  const existingContent = await fs.readFile(htmlPath, 'utf8');
+  const existingContent = await fs.readFile(htmlPath, "utf8");
   if (existingContent.trim().length > 0) {
-    return 'skipped';
+    return "skipped";
   }
 
-  await fs.writeFile(htmlPath, htmlTemplate(pageName), 'utf8');
-  return 'templated';
+  await fs.writeFile(htmlPath, htmlTemplate(pageName), "utf8");
+  return "templated";
 }
 
 async function updateViteInput({ rootDir, viteConfigPath, htmlFiles }) {
-  const viteContent = await fs.readFile(viteConfigPath, 'utf8');
-  const escapedStart = INPUT_START_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const escapedEnd = INPUT_END_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const viteContent = await fs.readFile(viteConfigPath, "utf8");
+  const escapedStart = INPUT_START_MARKER.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&",
+  );
+  const escapedEnd = INPUT_END_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const markerPattern = getMarkerPattern(escapedStart, escapedEnd);
 
   if (!markerPattern.test(viteContent)) {
@@ -204,14 +217,24 @@ async function updateViteInput({ rootDir, viteConfigPath, htmlFiles }) {
     );
   }
 
-  const nextContent = viteContent.replace(markerPattern, createInputBlock(htmlFiles));
-  await fs.writeFile(viteConfigPath, nextContent, 'utf8');
+  const nextContent = viteContent.replace(
+    markerPattern,
+    createInputBlock(htmlFiles),
+  );
+  await fs.writeFile(viteConfigPath, nextContent, "utf8");
 }
 
-async function upsertViteInputTargets({ rootDir, viteConfigPath, htmlTargets }) {
-  const viteContent = await fs.readFile(viteConfigPath, 'utf8');
-  const escapedStart = INPUT_START_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const escapedEnd = INPUT_END_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+async function upsertViteInputTargets({
+  rootDir,
+  viteConfigPath,
+  htmlTargets,
+}) {
+  const viteContent = await fs.readFile(viteConfigPath, "utf8");
+  const escapedStart = INPUT_START_MARKER.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&",
+  );
+  const escapedEnd = INPUT_END_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const markerPattern = getMarkerPattern(escapedStart, escapedEnd);
   const match = viteContent.match(markerPattern);
 
@@ -230,21 +253,33 @@ async function upsertViteInputTargets({ rootDir, viteConfigPath, htmlTargets }) 
   }
 
   const mergedPaths = [...existingEntries.values()];
-  const nextContent = viteContent.replace(markerPattern, createInputBlock(mergedPaths));
-  await fs.writeFile(viteConfigPath, nextContent, 'utf8');
+  const nextContent = viteContent.replace(
+    markerPattern,
+    createInputBlock(mergedPaths),
+  );
+  await fs.writeFile(viteConfigPath, nextContent, "utf8");
 }
 
 export async function generatePages(userOptions = {}) {
   const rootDir = path.resolve(userOptions.rootDir ?? process.cwd());
-  const srcDir = path.join(rootDir, userOptions.srcDir ?? 'src');
-  const entryDir = path.join(srcDir, userOptions.entryDir ?? 'entry');
-  const componentDir = path.join(srcDir, userOptions.componentDir ?? 'component');
-  const viteConfigPath = path.join(rootDir, userOptions.viteConfig ?? 'vite.config.js');
+  const srcDir = path.join(rootDir, userOptions.srcDir ?? "src");
+  const entryDir = path.join(srcDir, userOptions.entryDir ?? "entry");
+  const componentDir = path.join(
+    srcDir,
+    userOptions.componentDir ?? "component",
+  );
+  const viteConfigPath = userOptions.viteConfig
+    ? path.join(rootDir, userOptions.viteConfig)
+    : await resolveDefaultViteConfigPath(rootDir);
   const updateVite = userOptions.updateVite !== false;
   const includeNestedHtml = userOptions.includeNestedHtml !== false;
-  const ignoreDirs = new Set(userOptions.ignoreDirs ?? ['.git', 'node_modules', 'dist']);
-  const appCssImportPath = userOptions.appCssImportPath ?? '../app.css';
-  const targetFiles = Array.isArray(userOptions.targets) ? userOptions.targets : [];
+  const ignoreDirs = new Set(
+    userOptions.ignoreDirs ?? [".git", "node_modules", "dist"],
+  );
+  const appCssImportPath = userOptions.appCssImportPath ?? "../app.css";
+  const targetFiles = Array.isArray(userOptions.targets)
+    ? userOptions.targets
+    : [];
 
   let rootHtmlFiles = [];
   if (targetFiles.length > 0) {
@@ -252,7 +287,7 @@ export async function generatePages(userOptions = {}) {
   } else {
     const rootEntries = await fs.readdir(rootDir, { withFileTypes: true });
     rootHtmlFiles = rootEntries
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.html'))
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".html"))
       .map((entry) => entry.name);
   }
 
@@ -267,23 +302,26 @@ export async function generatePages(userOptions = {}) {
     const entryPath = path.join(entryDir, `${baseName}.ts`);
     const componentPath = path.join(componentDir, `${componentName}.svelte`);
 
-    const htmlResult = await writeHtmlBoilerplateIfNeeded(
-      htmlPath,
-      baseName,
+    const htmlResult = await writeHtmlBoilerplateIfNeeded(htmlPath, baseName);
+    logs.push(
+      `${htmlResult.toUpperCase()} ${path.relative(rootDir, htmlPath)}`,
     );
-    logs.push(`${htmlResult.toUpperCase()} ${path.relative(rootDir, htmlPath)}`);
 
     const entryResult = await writeIfNeeded(
       entryPath,
       entryTemplate(componentName, appCssImportPath),
     );
-    logs.push(`${entryResult.toUpperCase()} ${path.relative(rootDir, entryPath)}`);
+    logs.push(
+      `${entryResult.toUpperCase()} ${path.relative(rootDir, entryPath)}`,
+    );
 
     const componentResult = await writeIfNeeded(
       componentPath,
       componentTemplate(componentName),
     );
-    logs.push(`${componentResult.toUpperCase()} ${path.relative(rootDir, componentPath)}`);
+    logs.push(
+      `${componentResult.toUpperCase()} ${path.relative(rootDir, componentPath)}`,
+    );
   }
 
   if (updateVite) {
@@ -304,7 +342,7 @@ export async function generatePages(userOptions = {}) {
   }
 
   if (rootHtmlFiles.length === 0) {
-    logs.push('No root HTML files found. Nothing to generate.');
+    logs.push("No root HTML files found. Nothing to generate.");
   }
 
   return {

@@ -52,8 +52,8 @@ The CLI replaces only the content between those markers.
 ```json
 {
   "scripts": {
-    "generate:all": "auto-svelte-pages",
-    "generate:": "auto-svelte-pages"
+    "generate:all": "auto-svelte-pages-ts",
+    "generate:": "auto-svelte-pages-ts"
   }
 }
 ```
