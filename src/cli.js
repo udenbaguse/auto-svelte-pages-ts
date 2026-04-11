@@ -59,6 +59,12 @@ function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--config") {
+      options.configPath = argv[i + 1];
+      i += 1;
+      continue;
+    }
+
     if (arg === "--help" || arg === "-h") {
       options.help = true;
       continue;
@@ -94,6 +100,7 @@ Options:
   --component-dir <dir>Component dir under src (default: component)
   --vite-config <file> Vite config path from root (default: vite.config.ts, fallback vite.config.js)
   --css-import <path>  CSS import path used in generated entry file (default: ../app.css)
+  --config <file>      Config file path (default: auto-svelte-pages.config.ts, fallback .js)
   --watch              Watch root HTML files and regenerate on changes
   --help, -h           Show help
 

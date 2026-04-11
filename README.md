@@ -46,6 +46,8 @@ The CLI replaces only the content between those markers.
 - `--component-dir <dir>` component directory under src (default: `component`)
 - `--vite-config <file>` Vite config path from root (default: `vite.config.ts`)
 - `--css-import <path>` CSS import path for generated entry files (default: `../app.css`)
+- `--config <file>` config file path (default: `auto-svelte-pages.config.ts`, fallback `.js`)
+- `--watch` watch root HTML files and regenerate on changes
 
 ## Script Setup Example
 
@@ -58,6 +60,31 @@ The CLI replaces only the content between those markers.
   }
 }
 ```
+
+## Config File
+
+Create `auto-svelte-pages.config.ts` in project root:
+
+```ts
+export default {
+  dirs: {
+    src: 'src',
+    entry: 'entry',
+    component: 'component',
+  },
+  cssImport: '../app.css',
+  markers: {
+    start: '// AUTO-GENERATED VITE INPUT START',
+    end: '// AUTO-GENERATED VITE INPUT END',
+  },
+};
+```
+
+Priority order:
+
+- CLI args
+- config file
+- built-in defaults
 
 
 ## Use

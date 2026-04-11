@@ -1,6 +1,6 @@
 {
   "name": "auto-svelte-pages-ts",
-  "version": "1.2.1",
+  "version": "2.2.2",
   "description": "Generate Svelte TypeScript entry/component files from HTML pages and sync Vite multi-page inputs.",
   "type": "module",
   "files": [

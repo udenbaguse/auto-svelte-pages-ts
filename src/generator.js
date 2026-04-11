@@ -1,8 +1,11 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
-const INPUT_START_MARKER = "// AUTO-GENERATED VITE INPUT START";
-const INPUT_END_MARKER = "// AUTO-GENERATED VITE INPUT END";
+const DEFAULT_INPUT_START_MARKER = "// AUTO-GENERATED VITE INPUT START";
+const DEFAULT_INPUT_END_MARKER = "// AUTO-GENERATED VITE INPUT END";
+const DEFAULT_CONFIG_TS_FILE = "auto-svelte-pages.config.ts";
+const DEFAULT_CONFIG_JS_FILE = "auto-svelte-pages.config.js";
 
 function toPascalCase(value) {
   return value
@@ -22,13 +25,18 @@ function toViteInputKey(relativeHtmlPath) {
   return segments.join("_").toLowerCase();
 }
 
-function entryTemplate(componentName, appCssImportPath) {
+function toImportPath(fromDir, toFile) {
+  const relativePath = normalizePath(path.relative(fromDir, toFile));
+  return relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
+}
+
+function entryTemplate(componentName, appCssImportPath, componentImportPath) {
   return `import { mount } from 'svelte'
 import '${appCssImportPath}'
-import App from '../component/${componentName}.svelte'
+import App from '${componentImportPath}'
 
 const app = mount(App, {
-  target: document.getElementById('app'),
+  target: document.getElementById('app')!,
 })
 
 export default app
@@ -44,7 +52,10 @@ function componentTemplate(componentName) {
 `;
 }
 
-function htmlTemplate(pageName) {
+function htmlTemplate(pageName, entryDirName) {
+  const entrySrc = normalizePath(
+    path.join("src", entryDirName, `${pageName}.ts`),
+  );
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -54,7 +65,7 @@ function htmlTemplate(pageName) {
 </head>
 <body>
   <div id="app"></div>
-  <script type="module" src="./src/entry/${pageName}.ts"></script>
+  <script type="module" src="./${entrySrc}"></script>
 </body>
 </html>
 `;
@@ -90,7 +101,7 @@ async function listHtmlFilesRecursively(rootDir, dir, ignoreDirs) {
   return htmlFiles;
 }
 
-function createInputBlock(relativeHtmlPaths) {
+function createInputBlock(relativeHtmlPaths, markers) {
   const pathByKey = new Map();
   for (const relativePath of relativeHtmlPaths) {
     pathByKey.set(toViteInputKey(relativePath), normalizePath(relativePath));
@@ -100,11 +111,9 @@ function createInputBlock(relativeHtmlPaths) {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([key, relativePath]) => `        ${key}: '${relativePath}',`);
 
-  return [
-    `        ${INPUT_START_MARKER}`,
-    ...lines,
-    `        ${INPUT_END_MARKER}`,
-  ].join("\n");
+  return [`        ${markers.start}`, ...lines, `        ${markers.end}`].join(
+    "\n",
+  );
 }
 
 function parseExistingInputEntries(blockContent) {
@@ -139,6 +148,56 @@ async function resolveDefaultViteConfigPath(rootDir) {
   } catch {
     return path.join(rootDir, "vite.config.js");
   }
+}
+
+async function loadConfig(rootDir, configPathFromCli) {
+  let candidatePath = null;
+  if (configPathFromCli) {
+    candidatePath = path.resolve(rootDir, configPathFromCli);
+    try {
+      await fs.access(candidatePath);
+    } catch {
+      return {};
+    }
+  } else {
+    const tsCandidate = path.join(rootDir, DEFAULT_CONFIG_TS_FILE);
+    const jsCandidate = path.join(rootDir, DEFAULT_CONFIG_JS_FILE);
+    try {
+      await fs.access(tsCandidate);
+      candidatePath = tsCandidate;
+    } catch {
+      try {
+        await fs.access(jsCandidate);
+        candidatePath = jsCandidate;
+      } catch {
+        return {};
+      }
+    }
+  }
+
+  const configModule = await import(pathToFileURL(candidatePath).href);
+  const loadedConfig = configModule.default ?? configModule;
+
+  if (
+    !loadedConfig ||
+    typeof loadedConfig !== "object" ||
+    Array.isArray(loadedConfig)
+  ) {
+    throw new Error(
+      `Invalid config file: ${path.relative(rootDir, candidatePath)}`,
+    );
+  }
+
+  return loadedConfig;
+}
+
+function resolveConfigValue(...values) {
+  for (const value of values) {
+    if (value !== undefined) {
+      return value;
+    }
+  }
+  return undefined;
 }
 
 async function resolveRootTargetHtmlFiles(rootDir, targets) {
@@ -189,23 +248,25 @@ async function writeIfNeeded(filePath, content) {
   return "skipped";
 }
 
-async function writeHtmlBoilerplateIfNeeded(htmlPath, pageName) {
+async function writeHtmlBoilerplateIfNeeded(htmlPath, pageName, entryDirName) {
   const existingContent = await fs.readFile(htmlPath, "utf8");
   if (existingContent.trim().length > 0) {
     return "skipped";
   }
 
-  await fs.writeFile(htmlPath, htmlTemplate(pageName), "utf8");
+  await fs.writeFile(htmlPath, htmlTemplate(pageName, entryDirName), "utf8");
   return "templated";
 }
 
-async function updateViteInput({ rootDir, viteConfigPath, htmlFiles }) {
+async function updateViteInput({
+  rootDir,
+  viteConfigPath,
+  htmlFiles,
+  markers,
+}) {
   const viteContent = await fs.readFile(viteConfigPath, "utf8");
-  const escapedStart = INPUT_START_MARKER.replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&",
-  );
-  const escapedEnd = INPUT_END_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedStart = markers.start.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedEnd = markers.end.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const markerPattern = getMarkerPattern(escapedStart, escapedEnd);
 
   if (!markerPattern.test(viteContent)) {
@@ -213,13 +274,13 @@ async function updateViteInput({ rootDir, viteConfigPath, htmlFiles }) {
       `Cannot update Vite input. Missing markers in ${path.relative(
         rootDir,
         viteConfigPath,
-      )}: "${INPUT_START_MARKER}" and "${INPUT_END_MARKER}".`,
+      )}: "${markers.start}" and "${markers.end}".`,
     );
   }
 
   const nextContent = viteContent.replace(
     markerPattern,
-    createInputBlock(htmlFiles),
+    createInputBlock(htmlFiles, markers),
   );
   await fs.writeFile(viteConfigPath, nextContent, "utf8");
 }
@@ -228,13 +289,11 @@ async function upsertViteInputTargets({
   rootDir,
   viteConfigPath,
   htmlTargets,
+  markers,
 }) {
   const viteContent = await fs.readFile(viteConfigPath, "utf8");
-  const escapedStart = INPUT_START_MARKER.replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&",
-  );
-  const escapedEnd = INPUT_END_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedStart = markers.start.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedEnd = markers.end.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const markerPattern = getMarkerPattern(escapedStart, escapedEnd);
   const match = viteContent.match(markerPattern);
 
@@ -243,7 +302,7 @@ async function upsertViteInputTargets({
       `Cannot update Vite input. Missing markers in ${path.relative(
         rootDir,
         viteConfigPath,
-      )}: "${INPUT_START_MARKER}" and "${INPUT_END_MARKER}".`,
+      )}: "${markers.start}" and "${markers.end}".`,
     );
   }
 
@@ -255,28 +314,90 @@ async function upsertViteInputTargets({
   const mergedPaths = [...existingEntries.values()];
   const nextContent = viteContent.replace(
     markerPattern,
-    createInputBlock(mergedPaths),
+    createInputBlock(mergedPaths, markers),
   );
   await fs.writeFile(viteConfigPath, nextContent, "utf8");
 }
 
 export async function generatePages(userOptions = {}) {
   const rootDir = path.resolve(userOptions.rootDir ?? process.cwd());
-  const srcDir = path.join(rootDir, userOptions.srcDir ?? "src");
-  const entryDir = path.join(srcDir, userOptions.entryDir ?? "entry");
-  const componentDir = path.join(
-    srcDir,
-    userOptions.componentDir ?? "component",
+  const loadedConfig = await loadConfig(rootDir, userOptions.configPath);
+
+  const srcDirName = resolveConfigValue(
+    userOptions.srcDir,
+    loadedConfig.srcDir,
+    loadedConfig.dirs?.src,
+    loadedConfig.dir?.src,
+    "src",
   );
-  const viteConfigPath = userOptions.viteConfig
-    ? path.join(rootDir, userOptions.viteConfig)
+  const entryDirName = resolveConfigValue(
+    userOptions.entryDir,
+    loadedConfig.entryDir,
+    loadedConfig.dirs?.entry,
+    loadedConfig.dir?.entry,
+    "entry",
+  );
+  const componentDirName = resolveConfigValue(
+    userOptions.componentDir,
+    loadedConfig.componentDir,
+    loadedConfig.dirs?.component,
+    loadedConfig.dir?.component,
+    "component",
+  );
+  const viteConfigFile = resolveConfigValue(
+    userOptions.viteConfig,
+    loadedConfig.viteConfig,
+    undefined,
+  );
+
+  const srcDir = path.join(rootDir, srcDirName);
+  const entryDir = path.join(srcDir, entryDirName);
+  const componentDir = path.join(srcDir, componentDirName);
+  const viteConfigPath = viteConfigFile
+    ? path.join(rootDir, viteConfigFile)
     : await resolveDefaultViteConfigPath(rootDir);
-  const updateVite = userOptions.updateVite !== false;
-  const includeNestedHtml = userOptions.includeNestedHtml !== false;
+
+  const updateVite =
+    resolveConfigValue(
+      userOptions.updateVite,
+      loadedConfig.updateVite,
+      true,
+    ) !== false;
+  const includeNestedHtml =
+    resolveConfigValue(
+      userOptions.includeNestedHtml,
+      loadedConfig.includeNestedHtml,
+      true,
+    ) !== false;
   const ignoreDirs = new Set(
-    userOptions.ignoreDirs ?? [".git", "node_modules", "dist"],
+    resolveConfigValue(userOptions.ignoreDirs, loadedConfig.ignoreDirs, [
+      ".git",
+      "node_modules",
+      "dist",
+    ]),
   );
-  const appCssImportPath = userOptions.appCssImportPath ?? "../app.css";
+  const appCssImportPath = resolveConfigValue(
+    userOptions.appCssImportPath,
+    loadedConfig.appCssImportPath,
+    loadedConfig.cssImport,
+    "../app.css",
+  );
+  const markers = {
+    start: resolveConfigValue(
+      userOptions.inputStartMarker,
+      loadedConfig.inputStartMarker,
+      loadedConfig.markers?.start,
+      loadedConfig.marker?.start,
+      DEFAULT_INPUT_START_MARKER,
+    ),
+    end: resolveConfigValue(
+      userOptions.inputEndMarker,
+      loadedConfig.inputEndMarker,
+      loadedConfig.markers?.end,
+      loadedConfig.marker?.end,
+      DEFAULT_INPUT_END_MARKER,
+    ),
+  };
   const targetFiles = Array.isArray(userOptions.targets)
     ? userOptions.targets
     : [];
@@ -301,15 +422,20 @@ export async function generatePages(userOptions = {}) {
     const htmlPath = path.join(rootDir, htmlFile);
     const entryPath = path.join(entryDir, `${baseName}.ts`);
     const componentPath = path.join(componentDir, `${componentName}.svelte`);
+    const componentImportPath = toImportPath(entryDir, componentPath);
 
-    const htmlResult = await writeHtmlBoilerplateIfNeeded(htmlPath, baseName);
+    const htmlResult = await writeHtmlBoilerplateIfNeeded(
+      htmlPath,
+      baseName,
+      entryDirName,
+    );
     logs.push(
       `${htmlResult.toUpperCase()} ${path.relative(rootDir, htmlPath)}`,
     );
 
     const entryResult = await writeIfNeeded(
       entryPath,
-      entryTemplate(componentName, appCssImportPath),
+      entryTemplate(componentName, appCssImportPath, componentImportPath),
     );
     logs.push(
       `${entryResult.toUpperCase()} ${path.relative(rootDir, entryPath)}`,
@@ -330,13 +456,14 @@ export async function generatePages(userOptions = {}) {
         rootDir,
         viteConfigPath,
         htmlTargets: rootHtmlFiles,
+        markers,
       });
     } else {
       const htmlFiles = includeNestedHtml
         ? await listHtmlFilesRecursively(rootDir, rootDir, ignoreDirs)
         : rootHtmlFiles;
       htmlFiles.sort((a, b) => a.localeCompare(b));
-      await updateViteInput({ rootDir, viteConfigPath, htmlFiles });
+      await updateViteInput({ rootDir, viteConfigPath, htmlFiles, markers });
     }
     logs.push(`UPDATED ${path.relative(rootDir, viteConfigPath)} Vite input`);
   }
@@ -349,8 +476,8 @@ export async function generatePages(userOptions = {}) {
     rootHtmlFiles,
     logs,
     markers: {
-      start: INPUT_START_MARKER,
-      end: INPUT_END_MARKER,
+      start: markers.start,
+      end: markers.end,
     },
   };
 }
